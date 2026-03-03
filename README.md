@@ -1,6 +1,6 @@
 # ✈️ *GPWS Sounds* for GeoFS
 
-![GeoFS Addon](https://img.shields.io/badge/GeoFS-Addon-blue?style=for-the-badge)
+[![GeoFS Addon](https://img.shields.io/badge/GeoFS-Addon-blue?style=for-the-badge)](https://geo-fs.com)
 [![Version](https://img.shields.io/badge/Version-4.0-green?style=for-the-badge)](https://github.com/Jafar20130315/GPWSsounds_geofs/blob/main/gpwssounds_release.user.js)
 [![Platform](https://img.shields.io/badge/Platform-Tampermonkey-orange?style=for-the-badge)](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
 
