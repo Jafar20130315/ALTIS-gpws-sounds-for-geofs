@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GPWS sounds, GeoFS.
 // @namespace    geofs.gpws.jafar
-// @version      4.0
-// @description  Hear a warning sounds, it helps you to fly carefully.
+// @version      4.1
+// @description  Hear a warning sounds, it helps you to fly carefully. Optimized UI for Replay mode.
 // @match        https://www.geo-fs.com/geofs.php*
 // @match        https://*.geo-fs.com/geofs.php*
 // @grant        none
@@ -42,23 +42,45 @@
         activeWarning = null;
     }
 
-    // ================= PERSISTENT UI LOGIC =================
+    // ================= PERSISTENT & ADAPTIVE UI =================
     function injectButton() {
         const bottomBar = document.querySelector(".geofs-ui-bottom");
-        if (!bottomBar || document.getElementById("gpws-stable-btn")) return;
+        if (!bottomBar) return;
 
-        const btn = document.createElement("div");
-        btn.id = "gpws-stable-btn";
-        // Stilni pastki panelga moslashtirish
+        // Repliy rejimini tekshirish (pastdagi EXIT PLAYER yozuvi orqali)
+        const isReplay = document.querySelector(".geofs-replay-container") || document.body.innerText.includes("EXIT PLAYER");
+        let btn = document.getElementById("gpws-stable-btn");
+
+        if (!btn) {
+            btn = document.createElement("div");
+            btn.id = "gpws-stable-btn";
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                soundsEnabled = !soundsEnabled;
+                if (!soundsEnabled) {
+                    stopAll();
+                } else {
+                    [...Object.values(AUDIO), ...Object.values(CALLOUTS)].forEach(a => {
+                        let p = a.play();
+                        if(p) p.then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
+                    });
+                }
+                injectButton(); 
+            };
+            bottomBar.appendChild(btn);
+        }
+
+        // Repliy rejimida tugmani xalaqit bermasligi uchun suramiz
         btn.style = `
             display: inline-block;
             vertical-align: middle;
-            margin-left: 10px;
+            margin-left: ${isReplay ? '25px' : '10px'}; 
             cursor: pointer;
             padding: 5px 8px;
             border-radius: 4px;
             background: ${soundsEnabled ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
             transition: 0.2s;
+            z-index: 10000;
         `;
         
         btn.innerHTML = `
@@ -67,35 +89,15 @@
                 GPWS ${soundsEnabled ? 'ON' : 'OFF'}
             </span>
         `;
-        
-        btn.onclick = (e) => {
-            e.stopPropagation();
-            soundsEnabled = !soundsEnabled;
-            if (!soundsEnabled) {
-                stopAll();
-            } else {
-                // Brauzer ovozini faollashtirish (Warm-up)
-                [...Object.values(AUDIO), ...Object.values(CALLOUTS)].forEach(a => {
-                    let p = a.play();
-                    if(p) p.then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
-                });
-            }
-            // Tugmani yangilash
-            const existingBtn = document.getElementById("gpws-stable-btn");
-            if (existingBtn) existingBtn.remove();
-            injectButton();
-        };
-
-        bottomBar.appendChild(btn);
     }
 
-    // Ekran o'zgarganda tugmani tekshirish
     const observer = new MutationObserver(() => injectButton());
     observer.observe(document.body, { childList: true, subtree: true });
 
     // ================= MAIN SIMULATION LOOP =================
     function mainLoop() {
-        if (!window.geofs?.animation?.values || !soundsEnabled) return;
+        const isReplay = document.querySelector(".geofs-replay-container") || document.body.innerText.includes("EXIT PLAYER");
+        if (!window.geofs?.animation?.values || !soundsEnabled || isReplay) return;
 
         const v = window.geofs.animation.values;
         const aircraftName = window.geofs.aircraft?.instance?.definition?.name || "";
@@ -111,14 +113,12 @@
             return;
         }
 
-        // 1. STALL (Highest Priority)
         if (stall) {
             if (AUDIO.stall.paused) AUDIO.stall.play();
             activeWarning = 'stall';
         } else {
             if (!AUDIO.stall.paused) { AUDIO.stall.pause(); AUDIO.stall.currentTime = 0; }
             
-            // 2. PULL UP / SINK RATE
             if (alt < 1000 && vs < -3200) {
                 if (AUDIO.pull.paused) AUDIO.pull.play();
                 activeWarning = 'pull';
@@ -134,14 +134,12 @@
             }
         }
 
-        // 3. BANK ANGLE
         if (roll > 35) {
             if (AUDIO.bank.paused) AUDIO.bank.play();
         } else {
             if (!AUDIO.bank.paused) { AUDIO.bank.pause(); AUDIO.bank.currentTime = 0; }
         }
 
-        // 4. SMART GEAR
         const isWaterPlane = WATER_PLANES.some(name => aircraftName.includes(name));
         if (!isWaterPlane && alt < 500 && alt > 35 && !gearIsDown) {
             if (AUDIO.gear.paused) AUDIO.gear.play();
@@ -149,7 +147,6 @@
             if (!AUDIO.gear.paused) { AUDIO.gear.pause(); AUDIO.gear.currentTime = 0; }
         }
 
-        // 5. CALLOUTS
         for (let h in CALLOUTS) {
             let h_val = parseInt(h);
             if (alt <= h_val && lastAltitude > h_val) {
@@ -159,7 +156,6 @@
         lastAltitude = alt;
     }
 
-    // Ishga tushirish
     setInterval(mainLoop, 200);
     setInterval(injectButton, 1000);
 
