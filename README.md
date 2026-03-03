@@ -29,7 +29,7 @@ A professional-grade **Ground Proximity Warning System (GPWS)** for GeoFS. This 
 1.  Install the [Tampermonkey](https://www.tampermonkey.net/) extension for your browser.
 
 ### Setup Steps
-1.  Click on the `skyguard-gpws.user.js` file in this repository.
+1.  Click on the `gpwssounds_release.user.js` file in this repository.
 2.  Click the **Raw** button.
 3.  Tampermonkey will automatically detect the script; click **Install**.
 4.  Refresh GeoFS and look for the aircraft icon in the bottom menu.
@@ -57,8 +57,5 @@ A professional-grade **Ground Proximity Warning System (GPWS)** for GeoFS. This 
 
 ---
 
-## 📜 License
-Distributed under the MIT License. See `LICENSE` for more information.
-
 ---
-**Created by Jafar** | [GeoFS Community]
+**Created by Jafar20130315**
