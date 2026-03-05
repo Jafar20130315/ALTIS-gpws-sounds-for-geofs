@@ -6,7 +6,7 @@
 // @match        https://www.geo-fs.com/geofs.php*
 // @match        https://*.geo-fs.com/geofs.php*
 // @author       Jafar_AS
-// @icon          https
+// @icon         https://i.ibb.co/Zpk1B4s3/Altis-icon-1.png
 // @grant        none
 // ==/UserScript==
 
@@ -322,7 +322,7 @@ function updateUI() {
     `;
 
     // Yangi Logotip URL manzili (bu yerda tasvir generatsiya qilinganidan keyin hosil bo'lgan URL bo'lishi kerak)
-    const logoUrl = "https://github.com/"; 
+    const logoUrl = "https://raw.githubusercontent.com/Jafar20130315/gpwssounds_geofs/refs/heads/main/Altis-icon.png"; 
 
     const statusText = soundsEnabled ? 'Altis: ACTIVE' : 'Altis: OFF';
     const clickAction = soundsEnabled ? ' (click to disable)' : ' (click to enable)';
