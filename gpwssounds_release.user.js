@@ -25,7 +25,7 @@
 
     // Ссылки на репозитории (оставил корень main, так как аудиофайлы скорее всего там)
     const AVRAMOVIC_URL = "https://raw.githubusercontent.com/avramovic/GeoFS-alerts/master/audio/";
-    const JAFAR_URL = "https://raw.githubusercontent.com/Jafar20130315/gpwssounds_geofs/main/";
+    const JAFAR_URL = "https://raw.githubusercontent.com/Jafar20130315/gpwssounds_geofs/audio/";
 
     const SOUND_FILES = {
         stall:         { url: AVRAMOVIC_URL + "airbus-stall-warning.mp3", p: 10, loop: true },
