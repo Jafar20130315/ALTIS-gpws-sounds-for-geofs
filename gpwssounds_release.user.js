@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name         Altis GeoFS
+// @name         Altis GeoFS GPWS
 // @namespace    https://jafaras.uz/
-// @version      8.3
-// @description  Warning sounds for GeoFS.
+// @version      8.4
+// @description  Realistic GPWS Warning sounds for GeoFS.
 // @match        https://www.geo-fs.com/geofs.php*
 // @match        https://*.geo-fs.com/geofs.php*
-// @author       Jafar_AS
+// @author       Jafar
 // @icon         https://i.ibb.co/Zpk1B4s3/Altis-icon-1.png
 // @grant        none
 // ==/UserScript==
@@ -16,77 +16,73 @@
     let soundsEnabled = false;
     let lastAltitude = 99999;
     let currentPriority = 0;
-    let activeKey = null;      
+    let activeKey = null;
     let activeAudio = null;
     let preloaded = false;
     let lastAutopilotState = false;
+    let flareTimer = 0;
+    let lastBankWarning = 0;
 
-    const RAW_URL = "https://raw.githubusercontent.com/avramovic/GeoFS-alerts/7fc27f444cc167fb588cd28afebff0526e7c53c7/audio/";
+    // Ссылки на репозитории (оставил корень main, так как аудиофайлы скорее всего там)
+    const AVRAMOVIC_URL = "https://raw.githubusercontent.com/avramovic/GeoFS-alerts/master/audio/";
+    const JAFAR_URL = "https://raw.githubusercontent.com/Jafar20130315/gpwssounds_geofs/main/";
 
     const SOUND_FILES = {
-        stall:      "airbus-stall-warning.mp3",
-        windshear:  "windshear.mp3",
-        pullup:      "pull-up.mp3",
-        terrain:    "terrain.mp3",
-        whoop:      "terrain-terrain-pull-up.mp3",
-        sink:        "sink-rate.mp3",
-        dontsink:    "dont-sink.mp3",
-        tooLowGear: "too-low-gear.mp3",
-        tooLowFlaps:"too-low-flaps.mp3",
-        tooLowTerrain:"too-low-terrain.mp3",
-        glideslope: "glideslope.mp3",
-        bank:        "bank-angle.mp3",
-        retard:      "retard.mp3",
-        mins:        "minimums.mp3",
-        appMins:    "approaching-minimums.mp3",
-        hundredAbove: "hundred-above.mp3",
-        autopilotOff: "autopilot-off.mp3",
-        autopilotOn:  "autopilot-on.mp3"
+        stall:         { url: AVRAMOVIC_URL + "airbus-stall-warning.mp3", p: 10, loop: true },
+        autopilotOff:  { url: AVRAMOVIC_URL + "airbus-autopilot-off.mp3", p: 10, loop: false },
+        bank:          { url: AVRAMOVIC_URL + "bank-angle-bank-angle.mp3", p: 3, loop: false },
+        retard:        { url: AVRAMOVIC_URL + "airbus-retard.mp3", p: 2, loop: false },
+        whoop:         { url: AVRAMOVIC_URL + "gpws-whoop-whoop.mp3", p: 8, loop: false },
+        pullup:        { url: AVRAMOVIC_URL + "terrain-terrain-pull-up.mp3", p: 9, loop: false },
+        sink:          { url: AVRAMOVIC_URL + "sink-rate.mp3", p: 7, loop: false },
+        tooLowGear:    { url: AVRAMOVIC_URL + "too-low-gear.mp3", p: 5, loop: false },
+        tooLowFlaps:   { url: AVRAMOVIC_URL + "too-low-flaps.mp3", p: 5, loop: false },
+        mins:          { url: AVRAMOVIC_URL + "minimums.mp3", p: 2, loop: false },
+        appMins:       { url: AVRAMOVIC_URL + "approaching-minimums.mp3", p: 2, loop: false },
+
+        // Твои файлы
+        windshear:     { url: JAFAR_URL + "windshear.mp3", p: 9, loop: false },
+        tooLowTerrain: { url: JAFAR_URL + "too-low-terrain.mp3", p: 5, loop: false },
+        dontsink:      { url: JAFAR_URL + "dont-sink.mp3", p: 6, loop: false },
+        glideslope:    { url: JAFAR_URL + "glideslope.mp3", p: 4, loop: false },
+        longFlare:     { url: JAFAR_URL + "runway-too-short.mp3", p: 8, loop: false }
     };
 
-    const SOUNDS = {
-        stall:      { audio: null, p: 10, loop: true },
-        windshear:  { audio: null, p: 9, loop: false },
-        pullup:      { audio: null, p: 9, loop: false },
-        terrain:    { audio: null, p: 8, loop: false },
-        whoop:      { audio: null, p: 8, loop: false },
-        sink:        { audio: null, p: 7, loop: false },
-        dontsink:    { audio: null, p: 6, loop: false },
-        tooLowGear: { audio: null, p: 5, loop: false },
-        tooLowFlaps:{ audio: null, p: 5, loop: false },
-        tooLowTerrain:{ audio: null, p: 5, loop: false },
-        glideslope: { audio: null, p: 4, loop: false },
-        bank:        { audio: null, p: 3, loop: false },
-        retard:      { audio: null, p: 2, loop: false },
-        mins:        { audio: null, p: 2, loop: false },
-        appMins:    { audio: null, p: 2, loop: false },
-        hundredAbove:{ audio: null, p: 2, loop: false },
-        autopilotOff:{ audio: null, p: 10, loop: false },
-        autopilotOn:{ audio: null, p: 10, loop: false }
-    };
+    const SOUNDS = {};
+    for (const key in SOUND_FILES) {
+        SOUNDS[key] = { audio: null, p: SOUND_FILES[key].p, loop: SOUND_FILES[key].loop, url: SOUND_FILES[key].url };
+    }
 
+    const CALLOUT_HEIGHTS = [2500, 2000, 1000, 500, 400, 300, 200, 100, 50, 40, 30, 20, 10, 5];
     const CALLOUTS = {};
-    [2500, 2000, 1500, 1000, 500, 400, 300, 200, 100, 50, 40, 30, 20, 10].forEach(h => {
-        CALLOUTS[h] = { audio: null, p: 1, filename: h + ".mp3" };
+    CALLOUT_HEIGHTS.forEach(h => {
+        CALLOUTS[h] = { audio: null, p: 1, url: AVRAMOVIC_URL + h + ".mp3" };
     });
 
     async function preloadAllAudio() {
         if (preloaded) return;
         const tasks = [];
-        for (const key in SOUND_FILES) {
-            tasks.push(fetch(RAW_URL + SOUND_FILES[key]).then(r => r.blob()).then(blob => {
-                const a = new Audio(URL.createObjectURL(blob));
-                a.preload = "auto";
-                if (SOUNDS[key]) SOUNDS[key].audio = a;
-            }).catch(e => console.warn(key + " error")));
+
+        for (const key in SOUNDS) {
+            tasks.push(fetch(SOUNDS[key].url)
+                .then(r => { if(!r.ok) throw new Error("404"); return r.blob(); })
+                .then(blob => {
+                    const a = new Audio(URL.createObjectURL(blob));
+                    a.preload = "auto";
+                    SOUNDS[key].audio = a;
+                }).catch(e => console.warn(`Файл не найден (${key}): ${SOUNDS[key].url}`)));
         }
+
         for (const h in CALLOUTS) {
-            tasks.push(fetch(RAW_URL + CALLOUTS[h].filename).then(r => r.blob()).then(blob => {
-                const a = new Audio(URL.createObjectURL(blob));
-                a.preload = "auto";
-                CALLOUTS[h].audio = a;
-            }).catch(e => console.warn(h + " error")));
+            tasks.push(fetch(CALLOUTS[h].url)
+                .then(r => r.blob())
+                .then(blob => {
+                    const a = new Audio(URL.createObjectURL(blob));
+                    a.preload = "auto";
+                    CALLOUTS[h].audio = a;
+                }).catch(e => {}));
         }
+
         await Promise.all(tasks);
         preloaded = true;
     }
@@ -97,8 +93,9 @@
 
         const prio = soundObj.p ?? 1;
 
-        if (prio > currentPriority || !activeAudio || activeAudio.paused) {
-            if (activeAudio && activeKey !== soundKey) {
+        // Жесткая и надежная система приоритетов
+        if (prio >= currentPriority || !activeAudio || activeAudio.paused) {
+            if (activeAudio && activeKey !== soundKey && activeKey !== ("callout_" + soundKey)) {
                 activeAudio.pause();
                 activeAudio.currentTime = 0;
             }
@@ -131,67 +128,85 @@
     function gearIsDown(v) {
         if (v.gearTarget !== undefined) return v.gearTarget === 1;
         if (v.gearPosition !== undefined) return v.gearPosition > 0.9;
-        return true; 
+        return true;
     }
 
     function mainLoop() {
         if (!window.geofs?.animation?.values || !soundsEnabled) return;
-        if (document.querySelector(".geofs-replay-container")) return; 
+        if (document.querySelector(".geofs-replay-container")) return;
 
         const v = window.geofs.animation.values;
         const ac = window.geofs.aircraft?.instance;
+
         const alt = Math.round((v.altitude || 0) - (v.groundElevationFeet || 0));
         const vs = v.verticalSpeed || 0;
         const kias = v.kias || 0;
+        const now = Date.now();
 
-        if (v.groundContact === 1) { 
+        if (v.groundContact === 1) {
             if (activeKey !== null) stopAll();
-            lastAltitude = alt; 
-            return; 
+            lastAltitude = alt;
+            flareTimer = 0;
+            return;
         }
 
-        // 1. Autopilot
         const apOn = ac?.autopilot?.on || false;
-        if (apOn && !lastAutopilotState) playSafe('autopilotOn');
         if (!apOn && lastAutopilotState) playSafe('autopilotOff');
         lastAutopilotState = apOn;
 
-        // 2. Stall - Eng yuqori prioritet, lekin kodni to'xtatib qo'ymasligi kerak
         const isStall = ac?.stalling || (v.aoa > 18 && kias < 110);
-        if (isStall) { 
-            playSafe('stall'); 
-        } else if (activeKey === 'stall') { 
-            stopAll(); 
+        if (isStall) {
+            playSafe('stall');
+        } else if (activeKey === 'stall') {
+            stopAll();
         }
 
-        // 3. Bank Angle - TO'G'RILANGAN
-        // geofs.animation.values.roll odatda darajada bo'ladi.
-        const rollAngle = Math.abs(v.roll || 0);
-        if (rollAngle > 45) { 
-            playSafe('bank'); 
+        // --- ВОССТАНОВЛЕНО: Чтение крена из v.aroll (из-за этого не работал Bank Angle) ---
+        const rollAngle = Math.abs(v.aroll || v.roll || 0);
+        if (rollAngle > 35 && (now - lastBankWarning > 3000)) {
+            playSafe('bank');
+            lastBankWarning = now;
         }
 
-        // 4. Sink Rate / Whoop Whoop
-        if (alt < 1000 && vs < -3500) playSafe('whoop');
+        // Windshear
+        if (alt < 1000 && alt > 50 && vs < -1500 && v.throttle > 0.8) {
+            playSafe('windshear');
+        }
+
+        // Pull up / Sink rate
+        if (alt < 1000 && vs < -3500) playSafe('pullup');
         else if (alt < 2500 && vs < -2000) playSafe('sink');
 
-        // 5. Gear & Flaps
         const gearDown = gearIsDown(v);
         const flaps = v.flapsPosition || 0;
-        if (alt < 500 && alt > 50 && !gearDown) playSafe('tooLowGear');
-        if (alt < 200 && alt > 50 && gearDown && flaps < 0.1) playSafe('tooLowFlaps');
 
-        // 6. Minimums & Retard
+        if (alt < 500 && alt > 50 && !gearDown) {
+            playSafe('tooLowGear');
+        } else if (alt < 200 && alt > 50 && gearDown && flaps < 0.1) {
+            playSafe('tooLowFlaps');
+        } else if (alt < 1000 && alt > 500 && !gearDown) {
+            playSafe('tooLowTerrain');
+        }
+
+        // Long flare
+        if (alt > 5 && alt < 30 && gearDown) {
+            flareTimer += 100;
+            if (flareTimer > 5000) {
+                playSafe('longFlare');
+                flareTimer = 0; // Сброс, чтобы звук не накладывался сам на себя
+            }
+        } else {
+            flareTimer = 0;
+        }
+
         if (alt <= 305 && lastAltitude > 305) playSafe('appMins');
         if (alt <= 205 && lastAltitude > 205) playSafe('mins');
-        if (alt <= 100 && lastAltitude > 100) playSafe('hundredAbove');
         if (alt <= 20 && lastAltitude > 20 && v.throttle > 0.1) playSafe('retard');
 
-        // 7. Callouts
-        for (let h in CALLOUTS) {
-            let h_val = parseInt(h);
-            if (alt <= h_val && lastAltitude > h_val) playSafe(h, true);
-        }
+        // Отсчет высот
+        CALLOUT_HEIGHTS.forEach(h_val => {
+            if (alt <= h_val && lastAltitude > h_val) playSafe(h_val.toString(), true);
+        });
 
         lastAltitude = alt;
     }
@@ -219,8 +234,8 @@
             btn.onclick = toggleGPWS;
             bar.appendChild(btn);
         }
-        
-        const logoUrl = "https://raw.githubusercontent.com/Jafar20130315/gpwssounds_geofs/refs/heads/main/Altis-icon.png";  
+
+        const logoUrl = "https://raw.githubusercontent.com/Jafar20130315/gpwssounds_geofs/refs/heads/main/Altis-icon.png";
         const statusText = soundsEnabled ? 'GPWS sounds on' : 'GPWS sounds off';
         const clickAction = soundsEnabled ? ' [Q]' : '[Q]';
 
@@ -245,8 +260,7 @@
         `;
     }
 
-    setInterval(mainLoop, 100); // 150ms dan 100ms ga tushirildi (aniqroq ishlashi uchun)
+    setInterval(mainLoop, 100);
     setInterval(updateUI, 2000);
 
-    console.log("Altis GPWS Fixed. Bank Angle & Priority logic updated.");
 })();
